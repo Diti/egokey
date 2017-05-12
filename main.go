@@ -42,9 +42,13 @@ func run(uid userId, keysize int, saveToFile bool) {
 
 	go generateKeypair(keypairs, uid, keysize)
 
-	for {
+	ticker := time.NewTicker(time.Millisecond * 500)
+	for range ticker.C {
 		select {
 		case kp := <-keypairs:
+			if verbose {
+				fmt.Print(".")
+			}
 			fpr := fmt.Sprintf("%X", kp.PrimaryKey.Fingerprint)
 			if isPrettyKey(fpr) {
 				if saveToFile == true {
@@ -56,11 +60,6 @@ func run(uid userId, keysize int, saveToFile bool) {
 				if !quiet {
 					fmt.Println(fpr)
 				}
-			}
-		default:
-			time.Sleep(time.Second)
-			if verbose {
-				fmt.Print(".")
 			}
 		}
 	}
