@@ -8,24 +8,28 @@ import (
 	"golang.org/x/crypto/openpgp/packet"
 )
 
-func createNewKey(name, comment, email string, keysize int) *openpgp.Entity {
-	cfg := &packet.Config{RSABits: keysize}
-
-	newKey, err := openpgp.NewEntity(name, comment, email, cfg)
-	if err != nil {
-		log.Fatalf("Cannot create a new key: %s", err)
+func generateKeypair(uid userId, keysize int) keyPair {
+	if verbose {
+		if uid.Id != "" {
+			log.Printf("Generating %d-bit RSA keys with UID: [%s]\n", keysize, uid.Id)
+		} else {
+			log.Printf("Generating %d-bit RSA keys with empty UID\n", keysize)
+		}
 	}
-	return newKey
+	cfg := &packet.Config{RSABits: keysize}
+	newPair, err := openpgp.NewEntity(uid.Name, uid.Comment, uid.Email, cfg)
+	if err != nil {
+		log.Fatalf("Cannot create a new key: — %s\n", err)
+	}
+	return newPair
 }
 
 func saveKeyToFile(entity *openpgp.Entity, filename string) {
 	cfg := &packet.Config{}
-
 	f, err := os.Create(filename)
 	defer f.Close()
 	if err != nil {
-		log.Fatalf("Cannot save to file “%s”: %s", filename, err)
+		log.Fatalf("Cannot save to file “%s” — %s\n", filename, err)
 	}
-
 	entity.SerializePrivate(f, cfg)
 }
