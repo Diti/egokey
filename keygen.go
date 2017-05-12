@@ -3,12 +3,13 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/packet"
 )
 
-func generateKeypair(uid userId, keysize int) keyPair {
+func generateKeypair(out chan<- keyPair, uid userId, keysize int) {
 	if verbose {
 		if uid.Id != "" {
 			log.Printf("Generating %d-bit RSA keys with UID: [%s]\n", keysize, uid.Id)
@@ -17,11 +18,16 @@ func generateKeypair(uid userId, keysize int) keyPair {
 		}
 	}
 	cfg := &packet.Config{RSABits: keysize}
-	newPair, err := openpgp.NewEntity(uid.Name, uid.Comment, uid.Email, cfg)
-	if err != nil {
-		log.Fatalf("Cannot create a new key: — %s\n", err)
+
+	// Run as many keygens as the remaining elements in channel
+	for cap(out)-len(out) >= 0 {
+		time.Sleep(time.Millisecond * 500)
+		newPair, err := openpgp.NewEntity(uid.Name, uid.Comment, uid.Email, cfg)
+		if err != nil {
+			log.Fatalf("Cannot create a new key: — %s\n", err)
+		}
+		out <- newPair
 	}
-	return newPair
 }
 
 func saveKeyToFile(entity *openpgp.Entity, filename string) {

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/packet"
@@ -34,14 +35,32 @@ type keyPair *openpgp.Entity
 type userId *packet.UserId
 type docoptArgs map[string]interface{}
 
-func dryRun(uid userId, keysize int) keyPair {
-	keypair := generateKeypair(uid, keysize)
-	if isPrettyKeyId(keypair.PrimaryKey.Fingerprint) {
-		fmt.Println("Yes, pretty!")
-	} else {
-		fmt.Println("No, not pretty...")
+func run(uid userId, keysize int, saveToFile bool) {
+	keypairs := make(chan keyPair, 4)
+
+	go generateKeypair(keypairs, uid, keysize)
+
+	for {
+		select {
+		case kp := <-keypairs:
+			fpr := kp.PrimaryKey.Fingerprint
+			if isPrettyKey(fpr) {
+				if saveToFile == true {
+					filename := fmt.Sprintf("%X.pgp", fpr)
+					saveKeyToFile(kp, filename)
+				}
+				if verbose {
+					fmt.Print("\nFound a pretty key ID: ")
+				}
+				fmt.Printf("%X\n", fpr)
+			}
+		default:
+			time.Sleep(time.Second)
+			if verbose {
+				fmt.Print(".")
+			}
+		}
 	}
-	return keypair
 }
 
 func main() {
@@ -59,10 +78,8 @@ func main() {
 	case args["run"] == true, args["dry-run"] == true:
 		uid := newUserId(args)
 		ks := parseKeysize(args["--keysize"].(string))
-		kp := dryRun(uid, ks)
-		if args["run"] == true {
-			saveKeyToFile(kp, args["--output"].(string))
-			fmt.Printf("%X\n", kp.PrimaryKey.Fingerprint)
-		}
+		save := args["run"] == true
+
+		run(uid, ks, save)
 	}
 }
