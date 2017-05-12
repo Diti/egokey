@@ -21,7 +21,6 @@ Usage:
 
 Options:
   -h, --help         Print this help message.
-  -o, --output=FILE  Output file for the keys [default: egokeyring.pgp]
   -q, --quiet        Print less on standard output.
   -s, --keysize=<N>  Set the RSA key size to N [default: 2048].
   -v, --verbose      Print more on standard output.
@@ -29,7 +28,10 @@ Options:
 	VERSION = `EgoKey v0.1`
 )
 
-var verbose bool
+var (
+	quiet   bool
+	verbose bool
+)
 
 type keyPair *openpgp.Entity
 type userId *packet.UserId
@@ -43,16 +45,17 @@ func run(uid userId, keysize int, saveToFile bool) {
 	for {
 		select {
 		case kp := <-keypairs:
-			fpr := kp.PrimaryKey.Fingerprint
+			fpr := fmt.Sprintf("%X", kp.PrimaryKey.Fingerprint)
 			if isPrettyKey(fpr) {
 				if saveToFile == true {
-					filename := fmt.Sprintf("%X.pgp", fpr)
-					saveKeyToFile(kp, filename)
+					saveKeyToFile(kp, fpr+".pgp")
 				}
 				if verbose {
 					fmt.Print("\nFound a pretty key ID: ")
 				}
-				fmt.Printf("%X\n", fpr)
+				if !quiet {
+					fmt.Println(fpr)
+				}
 			}
 		default:
 			time.Sleep(time.Second)
@@ -69,6 +72,7 @@ func main() {
 		log.Fatalf("Argument parse error – %s\n", err)
 	}
 
+	quiet = args["--quiet"].(bool)
 	verbose = args["--verbose"].(bool)
 
 	switch {
